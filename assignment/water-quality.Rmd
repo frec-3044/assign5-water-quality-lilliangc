@@ -1,0 +1,327 @@
+---
+title: 'Water Quality'
+author: 'Quinn Thomas'
+output:
+  github_document: default
+---
+
+```{r message= FALSE}
+library(tidyverse)
+library(lubridate)
+```
+
+# Using Application Programming Interfaces (API)
+
+Many sources of data have an application programming interface (API) that is a set of clearly defined methods of communication. The USGS has a API that we will use.
+
+Copy and paste the following command into a web browser.
+
+<https://nwis.waterdata.usgs.gov/usa/nwis/uv/?cb_00010=on&format=rdb&site_no=05464420&period=&begin_date=2014-04-01&end_date=2014-09-01>
+
+You will see that it returns a data table and, based the USGS website, is tab-delimitated. This call to the API specifically asks for a subset of data from the USGS water quality dataset. To see what subset it is asking for we need to break down the API into its components.
+
+-   the base URL: <https://nwis.waterdata.usgs.gov/usa/nwis/uv/>?   
+-   the variable of interest: `cb_00010=on` (00010 is water temperature and `cb` is require before all variables)
+-   the format of the table: `format=rdb` (this means tab delimited table, rather
+    than, say, a json format)
+-   the site id: `site_no=05464420`
+-   the period of time: `period=&begin_date=2014-04-01&end_date=2014-09-01` (the
+    period of the begin and end date)
+
+Each of these components is combined together with an "&" to create the full URL.
+
+Our goal is to leverage the API to explore spatial and temporal patterns in water quality.
+
+To read in data from a single request, we can directly read in the data
+
+```{r}
+url <- "https://nwis.waterdata.usgs.gov/usa/nwis/uv/?cb_00010=on&format=rdb&site_no=05464420&period=&begin_date=2014-04-01&end_date=2014-09-01"
+df <- read_delim(url, delim = "\t")
+head(df) 
+```
+
+Look at the imported data. Did it work? Is there a symbol that designates a comment in the file?
+
+Now use the comment option in the `read_delim`. You will need to add the comment symbol below in place of `[INSERT SYMBOL]`
+
+```{r}
+stream_data <- read_delim(url, 
+                          delim = "\t", 
+                          comment = "[INSERT SYMBOL]")
+
+```
+
+Do the headers look good now?
+
+```{r}
+head(stream_data)
+```
+
+Which column is the temperature observation? Let's give them better names. The number below in `rename` is the column number
+
+```{r}
+stream_data <- stream_data %>% 
+    rename(temperature = 5)
+```
+
+What is the class of the datetime and nitrate columns? Is this what you expected?
+
+Why might the class be wrong? Look at the top rows of the dataframe and in the raw data. Why is the first row different that all the other rows?
+
+Now, we need to remove the first row. `slice` is a function that selects particular rows based on row number. The `-1` value removes the first row.
+
+```{r}
+stream_data <- stream_data %>% 
+    slice(-1)
+
+head(stream_data)
+```
+
+Now fix the class issue with the `datetime` and `temperature` columns. What is the format of the`datatime` column? Since it has the year, month, day, hour, and minute we will use the `ymd_hm()` function (this is similar to the `ymd()` that we used in the data carpentry module)
+
+```{r}
+stream_data <- stream_data %>% 
+    mutate(datetime = ymd_hm(datetime))
+head(stream_data)
+```
+
+Now lets fix the `temperature` column by converting from character to numeric using `as.numeric()`
+
+```{r}
+stream_data <- stream_data |> 
+  mutate(temperature = as.numeric(temperature))
+```
+
+Finally, remove the temperature missing values using `na.omit()`
+
+```{r}
+stream_data <- stream_data |> 
+  na.omit()
+```
+
+**Question 1:**
+
+Combine all data download, import, and cleaning steps above into a single set of piped commands that creates a data table named `stream_data`
+
+**Answer 1:**
+
+```{r}
+
+```
+
+# Functions
+
+Often you want repeat a task, like downloading from an API, using slightly different configurations. Rather than copying and pasting the code for each configuration.
+
+The first step is to create the task that you will be repeatly doing using a function. Functions can take input arguments and generate output. For example, here is a function that adds two numbers together.
+
+```{r}
+add2numbers <- function(a, b){
+  c <- a + b
+  return(c)
+}
+```
+
+The function can be called `add2numbers(a = 1 , b = 2)` or just `add2numbers(1 , 2)`. `a` and `b` are the input arguments and it returns a single value that as to be assigned to a new object
+
+```{r}
+new_number <- add2numbers(2, 3)
+new_number
+```
+
+Functions like this are very powerful for breaking up code into clearly separated, well-described (particularly when using descriptive verbs in the function name - like we know what the `add2numbers` does from the function name) reusable parts. The power of using multiple functions is that you can update a function in one place, and all the places that it is called will also be updated. This helps reduce errors in your code where you changed something in one place but not another.
+
+**Question 2:**
+
+Based on the information provided above, create a function that takes arguments `variable`, `site_no`, `begin_date`, and `end_date` and returns the full API URL. Remember to give the function a useful name that is a verb (e.g., represents the action)
+
+**Answer 2:**
+
+```{r}
+
+
+```
+
+Now add your function from Question 2 to the function below where it says "ADD_YOUR_FUNCTION_FROM_QUESTION_2" (yes - functions can be within functions). This function takes `site_no` as an argument and returns a cleaned data table.  You will also add your code from Question 1 to where it says "ADD_YOUR_CODE_FROM_QUESTION_1_THAT_CLEANS_THE_DATA".
+
+```{r}
+get_USGS_temp_data <- function(site_no){
+  
+  url <- ADD_YOUR_FUNCTION_FROM_QUESTION_2
+  
+  stream_data <- read_delim(file = url, 
+                            delim = "\t", 
+                            comment = "#")
+  
+  if(ncol(stream_data) < 5){ 
+    #THIS IS NEEDED BECAUSE SOME SITES MAY RETURN EMPTY TABLES
+    stream_data <- NULL
+  }else{
+    stream_data <- ADD_YOUR_CODE_FROM_QUESTION_1_THAT_CLEANS_THE_DATA
+  }
+  return(stream_data)
+  
+}
+```
+
+# Iteration
+
+Now that we have a function we can reuse, there are powerful tools in R that make it easy to apply the function repeatably using different values for the arguments. Here we will use the `map_` family of functions within the `purrr` package (contained in the Tidyverse). 
+
+Back to our `add2numbers()` example. The following code has a vector of numbers `numbers2add` that we want to add to the number 1 (`b = 1`). The map function applies the `add2numbers()` function to each number in `numbers2add` using the other argument a not changing `b = 1`. Importantly, the first argument of the map function is the vector of things that you want to iterate over and it has to be the first argument in the function that you are using. In particular, `numbers2add` are the values that we want to use for `a` in the `add2numbers(a, b)`. The second argument is the function name. Any arguments after function name are other arguments that function uses.
+
+```{r}
+numbers2add <- c(1,2,3,4)
+numbers <- map(numbers2add, add2numbers, b = 1)
+numbers
+```
+
+Does this match your expected output?
+
+The class of the output are lists. That is because the `map` function automatically combines the output from the different function calls into a list. There are other functions in the `map_` family that combines the output in different ways. For example, the `map_dbl` function returns a vector of numeric values and is more approproiate for this simple example.
+
+```{r}
+numbers2add <- c(1,2,3,4)
+numbers <- map_dbl(numbers2add, add2numbers, b = 1)
+numbers
+```
+
+There are multipe functions in the `map_` family that combine the output in different ways.
+
+**Question 3**
+
+Run the command `?map` to pull up the help information for the map function. For
+each function below describe what the map function will return
+
+**Answer 3**:
+
+-   `map()`:
+-   `map_lgl()`:
+-   `map_int()`:
+-   `map_dbl()`:
+-   `map_chr()`:
+-   `map_dfr()`:
+-   `map_dfc()`:
+-   `walk()`:
+
+The `map_dfr()` is particularly powerful for working with data frames because it appends by rows each data frame that is generated by each call to the function. We use it to apply our function to download and clean the USGS data over multiple sites. This example uses two site codes.
+
+```{r}
+sites <- c("05412500", "05464420")
+
+temperature_data <- map_dfr(sites, get_USGS_temp_data)
+```
+
+Now we can plot the data that was returned by the call to `map_dfr`. Does it have data from two sites as expected?
+
+```{r}
+ggplot(temperature_data, aes(x = datetime, y = tempeature, color = site_no)) +
+  geom_point()
+```
+
+# Explore impaired streams and nitrate concentrations at a site
+
+For the second part of this module, we will be further exploring impaired water bodies near us and federal guidelines for safety using publicly available EPA water quality data.
+
+**Question 4:** (provide answers)
+
+Explore federal regulatory guidelines. The US Environmental Protection Agency lists water quality regulations for both Human Drinking Water
+
+<https://www.epa.gov/ground-water-and-drinking-water/national-primary-drinking-water-regulations>
+
+- What is the Maximum Contaminant Level (MCL) for nitrate (reported as nitrate
+-nitrogen) in mg/L. 
+- What are the potential health impacts of consuming water with concentrations
+above this limit?
+- What are the common sources of nitrate in water?
+
+**Answer 4:**
+
+Add answers to the three questions above.
+
+---------
+
+During this portion of the module, you will download, clean, and generate plots that will allow you to further analyze the data, answering questions as you go.
+
+Watershed managers need to know how often a risk presents itself in a watershed in order for action to be taken. For financially strapped government's, priority is given to problems that have the highest probability of occurring and which are associated with the most severe impacts. "Blue-baby syndrome" is a condition that leads to infant mortality. It is caused by the ingestion of nitrate in drinking water which subsequently bonds to oxygen sites on hemoglobin in the blood of the infant. This impairs the circulation of oxygen in the bloodstream and causes the baby to turn blue. Obviously, society would like to avoid this outcome.
+
+**Question 5:**
+
+Modify the functions that we created for downloading and cleaning temperature data to be able to download the nitrate data (variable code is `cb_99133`).
+
+**Answer 5:**
+
+```{r}
+
+
+```
+
+**Question 6:**
+
+Download and clean the data from `site_no = 05464420` for the period between 2011-01-01 and 2023-01-01.
+
+**Answer 6:**
+
+```{r}
+
+
+```
+
+**Question 7:**
+
+Create a plot with datetime on the x-axis and nitrate on the y-axis (this is a time-series plot of nitrate). Then use the `geom_hline()` function to add a horizontal line at the EPA concentration (the `epa_limit` variable that you defined above)
+
+**Answer 7:**
+
+```{r}
+
+
+```
+
+**Question 8:**
+
+Does the location exceed the EPA limit?
+
+**Answer 8:**
+
+**Question 9:**
+
+Calculate the number of days per year where the daily mean nitrate is higher than the EPA limit.  You will need to figure out how to answer this question using skills that you already have (i.e., `group_by`, `summarize`, `year`).  One skill that you may not have used yet is the [`ifelse()` function](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/ifelse).  You can use `ifelse` in a mutate to determine if the daily mean nitrate is above the threshold: `mutate(above = ifelse(nitrate > epa_limit, 1, 0))`.  
+
+**Answer 9:**
+
+**Question 10:**
+
+Plot how the number of days per year where the average nitrate concentration is higher than the EPA limit over the years in the data (x = year, y = number of days per year). How is it changing over time?
+
+**Answer 10:**
+
+```{r}
+
+
+```
+
+# Geneate report for an agency
+
+An Iowa agency wants a report on how water quality is changing through time across the state. Generate a plot that provides number of days per year where the average nitrate concentration for each site is higher than the EPA limit over the years in the data. You have all the tools to need to generate the report except for the list of USGS sites in Iowa. You can find the list of all sites in a json file in the `data/site_list.json` with the site codes as a column.
+
+A JSON file is a common format used when requesting data from database hosted remotely. JSON stands for JavaScript Object Notation. You can learn more about JSON [here](https://r4ds.hadley.nz/rectangling.html#json). You will need to install the `jsonlite` package and use the `read_json()` function to read in the metadata (you can call this `df_site_list`).  Be sure to use the the argument `simplifyVector = TRUE` so that you covert the JSON to a dataframe.
+
+**Question 11:**
+
+Your answers to this Question is going to be a mix of code chunks and text. It
+should include
+
+-   Read in and prepare data for analysis.
+-   Aggregate (summarize) data to the appropriate time resolution.
+-   Plot data that includes all sites (e.g. sites should be separate lines on the
+    plot)
+-   Describe the patterns and conclusions from the data.
+
+**Answer 11:**
+
+# Knitting and committing
+
+Remember to Knit your document as a `github_document` and comment+push to GitHub your code, knitted document, and any files in the `figure-gfm` subdirectory that was created when you knitted the document.
+
+
