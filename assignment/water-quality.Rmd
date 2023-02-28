@@ -47,7 +47,7 @@ Now use the comment option in the `read_delim`. You will need to add the comment
 ```{r}
 stream_data <- read_delim(url, 
                           delim = "\t", 
-                          comment = "[INSERT SYMBOL]")
+                          comment = "#")
 
 ```
 
@@ -62,6 +62,8 @@ Which column is the temperature observation? Let's give them better names. The n
 ```{r}
 stream_data <- stream_data %>% 
     rename(temperature = 5)
+
+# the 5 represents column 5
 ```
 
 What is the class of the datetime and nitrate columns? Is this what you expected?
@@ -82,7 +84,8 @@ Now fix the class issue with the `datetime` and `temperature` columns. What is t
 ```{r}
 stream_data <- stream_data %>% 
     mutate(datetime = ymd_hm(datetime))
-head(stream_data)
+head(stream_data) 
+# tz = time zone
 ```
 
 Now lets fix the `temperature` column by converting from character to numeric using `as.numeric()`
@@ -95,17 +98,36 @@ stream_data <- stream_data |>
 Finally, remove the temperature missing values using `na.omit()`
 
 ```{r}
-stream_data <- stream_data |> 
-  na.omit()
+#stream_data <- stream_data |> 
+  #na.omit()
 ```
 
 **Question 1:**
 
-Combine all data download, import, and cleaning steps above into a single set of piped commands that creates a data table named `stream_data`
+Download data, then combine all data download, import, and cleaning steps above into a single set of piped commands that creates a data table named `stream_data`
 
 **Answer 1:**
 
 ```{r}
+# installing libraries
+library(tidyverse)
+library(lubridate)
+
+# downloading data
+url <- "https://nwis.waterdata.usgs.gov/usa/nwis/uv/?cb_00010=on&format=rdb&site_no=05464420&period=&begin_date=2014-04-01&end_date=2014-09-01"
+df <- read_delim(url, delim = "\t", comment = "#")
+
+
+# cleaning the data
+
+stream_data <- df |> 
+  slice(-1) |> 
+  rename(temperature = 5) |> 
+  mutate(datetime = ymd_hm(datetime)) |> 
+  mutate(temperature = as.numeric(temperature)) 
+  
+
+head(stream_data)
 
 ```
 
