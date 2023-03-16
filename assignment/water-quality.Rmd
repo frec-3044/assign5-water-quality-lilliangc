@@ -126,7 +126,6 @@ stream_data <- df |>
   mutate(datetime = ymd_hm(datetime)) |> 
   mutate(temperature = as.numeric(temperature)) 
   
-
 head(stream_data)
 
 ```
@@ -160,8 +159,30 @@ Based on the information provided above, create a function that takes arguments 
 **Answer 2:**
 
 ```{r}
+make_url <- function(variable, site_no, begin_date, end_date){
+  
+  url <-  paste0("https://nwis.waterdata.usgs.gov/usa/nwis/uv/?",
+                 variable,"=on&format=rdb&site_no=",
+                 site_no,"&period=&begin_date=", 
+                 begin_date, "&end_date=", 
+                 end_date)
+  
+  return(url)
+}
+
+make_url(variable = "cb_00010", site_no = "05464420", begin_date = "2014-04-01", end_date = "2014-09-01")
+
+#https://nwis.waterdata.usgs.gov/usa/nwis/uv/?cb_00010=on&format=rdb&site_no=05464420&period=&begin_date=2014-04-01&end_date=2014-09-01"
 
 
+# you can combine things with paste0()
+# test = "Data"
+## paste0(test, " Science")
+### gives back: test Science
+
+# variable <- "cb_00010"
+# url <- paste0(https://nwis.waterdata.usgs.gov/usa/nwis/uv/?", variable,"on&format=rdb&site_no=05464420&period=&begin_date=2014-04-01&end_date=2014-09-01)
+# url
 ```
 
 Now add your function from Question 2 to the function below where it says "ADD_YOUR_FUNCTION_FROM_QUESTION_2" (yes - functions can be within functions). This function takes `site_no` as an argument and returns a cleaned data table.  You will also add your code from Question 1 to where it says "ADD_YOUR_CODE_FROM_QUESTION_1_THAT_CLEANS_THE_DATA".
@@ -169,7 +190,7 @@ Now add your function from Question 2 to the function below where it says "ADD_Y
 ```{r}
 get_USGS_temp_data <- function(site_no){
   
-  url <- ADD_YOUR_FUNCTION_FROM_QUESTION_2
+  url <- make_url(variable = "cb_00010", site_no = site_no, begin_date = "2014-04-01", end_date = "2014-09-01")
   
   stream_data <- read_delim(file = url, 
                             delim = "\t", 
@@ -179,7 +200,11 @@ get_USGS_temp_data <- function(site_no){
     #THIS IS NEEDED BECAUSE SOME SITES MAY RETURN EMPTY TABLES
     stream_data <- NULL
   }else{
-    stream_data <- ADD_YOUR_CODE_FROM_QUESTION_1_THAT_CLEANS_THE_DATA
+    stream_data <- stream_data |> 
+      slice(-1) |> 
+      rename(temperature = 5) |> 
+      mutate(datetime = ymd_hm(datetime)) |> 
+      mutate(temperature = as.numeric(temperature)) 
   }
   return(stream_data)
   
@@ -193,6 +218,12 @@ Now that we have a function we can reuse, there are powerful tools in R that mak
 Back to our `add2numbers()` example. The following code has a vector of numbers `numbers2add` that we want to add to the number 1 (`b = 1`). The map function applies the `add2numbers()` function to each number in `numbers2add` using the other argument a not changing `b = 1`. Importantly, the first argument of the map function is the vector of things that you want to iterate over and it has to be the first argument in the function that you are using. In particular, `numbers2add` are the values that we want to use for `a` in the `add2numbers(a, b)`. The second argument is the function name. Any arguments after function name are other arguments that function uses.
 
 ```{r}
+
+add2numbers(1, 1)
+add2numbers(2, 1)
+add2numbers(3, 1)
+add2numbers(4, 1)
+
 numbers2add <- c(1,2,3,4)
 numbers <- map(numbers2add, add2numbers, b = 1)
 numbers
@@ -237,8 +268,11 @@ temperature_data <- map_dfr(sites, get_USGS_temp_data)
 Now we can plot the data that was returned by the call to `map_dfr`. Does it have data from two sites as expected?
 
 ```{r}
-ggplot(temperature_data, aes(x = datetime, y = tempeature, color = site_no)) +
-  geom_point()
+ggplot(temperature_data, aes(x = datetime, y = temperature, color = site_no)) +
+  geom_point() + 
+  theme_bw() +
+  labs(x = "Date", 
+       y = "Temperature")
 ```
 
 # Explore impaired streams and nitrate concentrations at a site
@@ -257,7 +291,7 @@ Explore federal regulatory guidelines. The US Environmental Protection Agency li
 above this limit?
 - What are the common sources of nitrate in water?
 
-**Answer 4:**
+**Answer 4: The maximum contaminant level (MCL) for nitrate is 10 mg/ml. **
 
 Add answers to the three questions above.
 
@@ -274,7 +308,27 @@ Modify the functions that we created for downloading and cleaning temperature da
 **Answer 5:**
 
 ```{r}
-
+get_USGS_nitrate_data <- function(site_no){
+  
+  url <- make_url(variable = "cb_99133", site_no = site_no, begin_date = "2011-01-01", end_date = "2023-01-01")
+  
+  nitrate_data <- read_delim(file = url, 
+                            delim = "\t", 
+                            comment = "#")
+  
+  if(ncol(nitrate_data) < 5){ 
+    #THIS IS NEEDED BECAUSE SOME SITES MAY RETURN EMPTY TABLES
+    nitrate_data <- NULL
+  }else{
+    nitrate_data <- nitrate_data |> 
+      slice(-1) |> 
+      rename(nitrate = 5) |> 
+      mutate(datetime = ymd_hm(datetime)) |> 
+      mutate(nitrate = as.numeric(nitrate)) 
+  }
+  return(nitrate_data)
+  
+}
 
 ```
 
@@ -285,7 +339,7 @@ Download and clean the data from `site_no = 05464420` for the period between 201
 **Answer 6:**
 
 ```{r}
-
+nitrate_data <- get_USGS_nitrate_data(site_no = "05464420")
 
 ```
 
@@ -296,7 +350,12 @@ Create a plot with datetime on the x-axis and nitrate on the y-axis (this is a t
 **Answer 7:**
 
 ```{r}
-
+nitrate_data |> ggplot(aes(datetime, nitrate)) + 
+  geom_line() +
+  geom_hline(yintercept = 10) +
+  theme_bw() +
+  labs(x = "Year",
+       y = "Nitrate")
 
 ```
 
@@ -304,13 +363,35 @@ Create a plot with datetime on the x-axis and nitrate on the y-axis (this is a t
 
 Does the location exceed the EPA limit?
 
-**Answer 8:**
+**Answer 8: On most dates, the nitrate level does not exceed the set 10 mg/ml nitrate limit; however, there are some spikes in nitrate that do exceed the limit, especially in the years 2014-2018. **
 
 **Question 9:**
 
 Calculate the number of days per year where the daily mean nitrate is higher than the EPA limit.  You will need to figure out how to answer this question using skills that you already have (i.e., `group_by`, `summarize`, `year`).  One skill that you may not have used yet is the [`ifelse()` function](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/ifelse).  You can use `ifelse` in a mutate to determine if the daily mean nitrate is above the threshold: `mutate(above = ifelse(nitrate > epa_limit, 1, 0))`.  
 
 **Answer 9:**
+
+```{r}
+## lubridate ##
+library(lubridate)
+
+epa_limit <- 10
+
+nitrate_cleaned <- nitrate_data |> 
+  mutate(year = year(datetime)) |> 
+  mutate(day = yday(datetime))  |> 
+  select(year, day, nitrate)
+
+## group-by ##
+nitrate_over_epa <- nitrate_cleaned |> 
+  group_by(year,day) |> 
+  summarize(daily_mean_n = mean(nitrate)) |> 
+  mutate(above = ifelse(daily_mean_n > epa_limit, 1, 0))
+
+above_epa_count <- nitrate_over_epa |> group_by(year) |> summarize(count = sum(above))
+
+
+```
 
 **Question 10:**
 
@@ -319,7 +400,12 @@ Plot how the number of days per year where the average nitrate concentration is 
 **Answer 10:**
 
 ```{r}
-
+above_epa_count |> ggplot(aes(year, count)) + 
+  geom_line() +
+  scale_x_continuous(breaks = seq(2012, 2022, by = 1)) +
+  theme_bw() +
+  labs(x = "Year",
+       y ="Number of Days")
 
 ```
 
