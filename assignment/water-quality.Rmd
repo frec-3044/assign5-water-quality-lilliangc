@@ -8,6 +8,9 @@ output:
 ```{r message= FALSE}
 library(tidyverse)
 library(lubridate)
+library(purrr)
+library(dplyr)
+
 ```
 
 # Using Application Programming Interfaces (API)
@@ -291,7 +294,7 @@ Explore federal regulatory guidelines. The US Environmental Protection Agency li
 above this limit?
 - What are the common sources of nitrate in water?
 
-**Answer 4: The maximum contaminant level (MCL) for nitrate is 10 mg/ml. **
+**Answer 4: The maximum contaminant level (MCL) for nitrate is 10 mg/L. **
 
 Add answers to the three questions above.
 
@@ -427,6 +430,24 @@ should include
 -   Describe the patterns and conclusions from the data.
 
 **Answer 11:**
+```{r}
+## installing packages ##
+#install.packages("jsonlite")
+library(jsonlite)
+
+## reading in the data ##
+df_site_list <- read_json("C:/Users/lchia/OneDrive/Documents/Spring 2023/EDS Assignments/assign5-water-quality-lilliangc/data/site_list.json", simplifyVector =TRUE)
+
+
+ohio_sites <- as.double(df_site_list$site_id)
+
+
+ohio_data <- map_dfr(ohio_sites, get_USGS_nitrate_data)
+
+```
+
+
+
 
 # Knitting and committing
 
