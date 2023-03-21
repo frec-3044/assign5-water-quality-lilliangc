@@ -176,17 +176,6 @@ make_url <- function(variable, site_no, begin_date, end_date){
 
 make_url(variable = "cb_00010", site_no = "05464420", begin_date = "2014-04-01", end_date = "2014-09-01")
 
-#https://nwis.waterdata.usgs.gov/usa/nwis/uv/?cb_00010=on&format=rdb&site_no=05464420&period=&begin_date=2014-04-01&end_date=2014-09-01"
-
-
-# you can combine things with paste0()
-# test = "Data"
-## paste0(test, " Science")
-### gives back: test Science
-
-# variable <- "cb_00010"
-# url <- paste0(https://nwis.waterdata.usgs.gov/usa/nwis/uv/?", variable,"on&format=rdb&site_no=05464420&period=&begin_date=2014-04-01&end_date=2014-09-01)
-# url
 ```
 
 Now add your function from Question 2 to the function below where it says "ADD_YOUR_FUNCTION_FROM_QUESTION_2" (yes - functions can be within functions). This function takes `site_no` as an argument and returns a cleaned data table.  You will also add your code from Question 1 to where it says "ADD_YOUR_CODE_FROM_QUESTION_1_THAT_CLEANS_THE_DATA".
